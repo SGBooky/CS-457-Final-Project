@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Binary executables and local build outputs
+*.exe
+*.out
+*.bin
+*.dll
+*.so
+*.dylib
+bin/
+obj/
