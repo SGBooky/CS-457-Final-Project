@@ -1,93 +1,115 @@
-# CS 457 Final Project — Statement of Work (Sprint 0)
+# CS 457 Project Statement of Work (SOW) & Protocol Specification Template
 
-## 1. Student / Project Information
-
-| Field | Value |
-| --- | --- |
-| Student Name | SG Booky / bbschlicting |
-| Course | CS 457 — Final Project |
-| Sprint | Sprint 0 |
-| Preferred Language | Python 3.x |
-| Preferred IDE | Cursor / VS Code |
-| Public Repository | https://github.com/SGBooky/CS-457-Final-Project |
-
-## 2. Toolchain Setup (Step 2.1)
-
-- **Python:** Python 3.14.3 installed and verified on the local development system.
-- **IDE:** Cursor and Visual Studio Code configured for Python development.
-- **Cisco Modeling Labs (CML):** Access verified; CML controller reports healthy compute/controller status with reference platform images available.
-
-## 3. Game Selection (Step 2.3)
-
-**Selected Game:** Terminal Trivia
-
-Terminal Trivia is a turn-based, two-player CLI quiz game. Two networked players compete over a fixed number of rounds by answering multiple-choice questions. Scores accumulate each round; the player with the higher score at the end of the match wins.
-
-## 4. Exact Game Rules
-
-### 4.1 Player Roles & Turn Mechanics
-
-1. The server waits until **exactly two clients** connect and each submits a display name.
-2. Player roles are assigned by connection order:
-   - **Player 1** = first successful connection
-   - **Player 2** = second successful connection
-3. A match consists of a fixed number of **rounds** (default: **10 questions**).
-4. For each round:
-   - The server broadcasts the same multiple-choice question (options A–D) to both players.
-   - Players answer independently within a per-question time limit (default: **15 seconds**).
-   - Answers are submitted once per round; late or missing answers score **0** for that round.
-   - After both answers are received (or the timer expires), the server reveals the correct answer, awards points, and advances to the next round.
-5. Turn order for answering is **simultaneous within a round** (not alternating moves). Round progression is strictly sequential: Round *n* completes before Round *n+1* begins.
-
-### 4.2 Scoring
-
-- Correct answer within the time limit: **+1 point**
-- Incorrect answer: **0 points**
-- No answer / timeout: **0 points**
-- Running totals are shown after every round (simple leaderboard).
-
-### 4.3 Victory Conditions
-
-- After all scheduled rounds complete, the player with the **higher total score** is the winner.
-- The server announces the final scores and the winner’s display name.
-
-### 4.4 Draw / Tie Conditions
-
-- If both players finish with the **same total score**, the match is a **tie**.
-- No sudden-death tiebreaker in the baseline Sprint design; the result is reported as a draw.
-- Optional later enhancement (not required for baseline): one bonus sudden-death question if scores are equal.
-
-### 4.5 Disconnect / Forfeit
-
-- If a connected player disconnects mid-match and does not reconnect before the next round starts, that player **forfeits** and the remaining player is declared the winner (provided at least one round has been scored, or both players had connected successfully).
-
-## 5. Target Server Domain Naming (Step 2.4)
-
-| Field | Value |
-| --- | --- |
-| Authoritative DNS Domain Name | `server.schlicting.edu` |
-| Format compliance | `server.[yourlastname].edu` |
-
-This domain will be used for authoritative DNS resolution in later sprints when the game server is reachable by name rather than by raw IP address.
-
-## 6. Design Roadmap (High Level)
-
-| Phase | Focus | Planned Outcome |
-| --- | --- | --- |
-| Sprint 0 | Environment, SOW, public repo | Toolchain ready; rules and domain locked |
-| Early sprints | Local CLI prototype | Two-player Terminal Trivia playable on localhost sockets |
-| Mid sprints | Network integration | Client/server over TCP; CML lab topology; DNS for `server.schlicting.edu` |
-| Later sprints | Hardening & polish | Reliable scoring, timeouts, disconnect handling, demo readiness |
-| Final | Demonstration | End-to-end two-player networked Terminal Trivia demo |
-
-## 7. Sprint 0 Deliverables Checklist
-
-- [x] Public Git repository initialized and accessible to teaching staff
-- [x] Language-appropriate `.gitignore` present (Python artifacts, venvs, OS junk, binaries)
-- [x] SOW describes a valid two-player CLI game with turn/round order, win conditions, and draw rules
-- [x] SOW specifies target domain as `server.schlicting.edu`
-- [x] Toolchain verified (Python 3.x, IDE, CML access)
+**Student Name:** Ben Schlicting  
+**Date:** 2026-09-16  
+**Course:** CS 457 - Computer Networks  
+**Target Server Domain:** `server.schlicting.edu`
 
 ---
 
-*Sprint 0 Statement of Work — Terminal Trivia*
+## 1. Game Selection & Scope (Sprint 0)
+
+> Planning is going to be an iterative process through the sprints so you don't have to have all the details now. Focus on big overview concepts. You will be updating the SOW as we plan.
+> You have a lot of freedom to choose a game. There are a couple caveats.
+
+> - It must run in the console. The lab nodes won't be able to handle extensive graphics.
+> - It has to be self-contained. You can use a internet-connector to download you code, but because the architecture must run 5 nodes you won't be able to run
+> - You are encouraged to use python, but I'm not going to make it a strict requirement. The instructor and TA's ability to help with C or Rust, etc will be diminished in other languages.
+
+### 1.1 Game Overview
+
+- **Chosen Game:** Terminal Trivia
+- **Player Capacity:** 2 Players (Simulated via 2 CML Client nodes)
+- **Game Summary:** Two networked players compete in a round based CLI quiz. The server presents multiple choice questions to both people each round. Players submit answers independently within a 15 second time limit. Correct answers earn points; after 10 rounds the eprson with the higher score wins.
+
+### 1.2 Core Game Rules & Win/Draw Conditions
+
+- **Turn Mechanics:** Play proceeds in 10 rounds. Each round, both players receive the same question and may answer simultaneously within a 15-second window. The server waits for both answers then scores the round then broadcasts results then advances to the next round.
+- **Victory Condition:** After all scheduled rounds complete the player with the higher total score is the winner.
+- **Draw/Tie Condition:** If both players finish with the same total score, the match is declared a tie/draw.
+
+---
+
+## 2. Application-Layer Messaging Protocol Blueprint (Sprint 1 Deliverable)
+
+### 2.1 Message Transport & Serialization Format
+
+- **Transport Protocol:** TCP
+- **Serialization Format:** JSON
+- **Framing Mechanism:** Newline-delimited (`\n`) JSON payloads (one complete JSON object per line)
+
+### 2.2 Message Schema Definitions
+
+#### Message Types:
+
+1. `CONNECT` (Client -> Server): Request to join the game room with a display name.
+2. `LOBBY_WAIT` (Server -> Client): Notification that the server is waiting for Player 2.
+3. `GAME_START` (Server -> Clients): Game initiated; assigns Player 1 / Player 2 roles and announces total rounds.
+4. `QUESTION` (Server -> Clients): Broadcasts the current round’s multiple-choice question and options.
+5. `MOVE` (Client -> Server): Player answer action (`choice`: `"A"` | `"B"` | `"C"` | `"D"`).
+6. `STATE_UPDATE` (Server -> Clients): Broadcast round results, running scores, and next-round / waiting status.
+7. `GAME_OVER` (Server -> Clients): Victory / Draw notification with final scores.
+8. `ERROR` (Server -> Client): Invalid answer, out-of-turn submission, or malformed packet error.
+
+#### Example JSON Protocol Schema:
+
+````json
+{
+  "msg_type": "MOVE",
+    "player_id": "Player_1",
+      "payload": {
+          "row": 0,
+              "col": 2
+                },
+                  "timestamp": 1727000000
+                  }
+                  ```
+
+                  ---
+
+                  ### 2.3 Game State Machine (FSM) Design (Sprint 1 Deliverable)
+                  - **State Transitions:** Detail state flow: `INIT` -> `WAITING_FOR_PLAYERS` -> `PLAYER_TURN` -> `EVALUATE_MOVE` -> `CHECK_WIN_DRAW` -> `GAME_OVER` -> `CLEANUP`.
+
+                  ---
+
+                  ## 3. Game Behavior & Server Concurrency Architecture (Sprint 2 Deliverable)
+
+                  ### 3.1 Server Concurrency Strategy
+                  - **Architecture Choice:** [Multi-Threading (`threading.Thread`) OR Non-blocking I/O multiplexing (`select.select` / `selectors`)]
+                  - **Synchronization Logic:** Explain how shared game state and client list are thread-safe (e.g. `threading.Lock`) to prevent race conditions during turn processing.
+
+                  ### 3.2 State & Score Synchronization Across Clients
+                  - **Turn Enforcement:** Detail how the server validates active player ID before processing moves and broadcasts updated turn notifications to all clients.
+                  - **Score & Board Synchronization:** Describe how state broadcasts keep client screens synchronized in real time.
+
+                  ---
+
+                  ## 4. Coding & AI Implementation Plan (Sprint 3)
+
+                  - **Permitted AI Tools:** [e.g., GitHub Copilot, ChatGPT, Claude]
+                  - **AI Prompting & Constraint Strategy:** Explain how you will constrain AI models to generate code (in Python or your chosen language) that adheres strictly to the protocol blueprint and FSM designed in Sprints 1 & 2.
+                  - **Implementation Risk Management:** Detail your plan to leverage past programming experience and manage time to ensure code completion on schedule.
+
+                  ---
+
+                  ## 5. CML Multi-Subnet Topology & Wireshark Deployment Plan (Sprint 4 & 5 Deliverable)
+
+                  > For now you can use the topology below. We may update this when we get to defining subnets.
+
+                  ### 5.1 Subnet & Router Design
+                  - **Subnet A (Client 1):** `192.168.10.0/24` (Interface `Gi0/1` on Router R1)
+                  - **Subnet B (Client 2):** `192.168.11.0/24` (Interface `Gi0/2` on Router R1)
+                  - **Subnet C (Game Server):** `192.168.20.0/24` (Interface `Gi0/1` on Router R2)
+                  - **Router Backbone:** `10.0.0.0/30` (Interface `Gi0/0` on R1 <-> `Gi0/0` on R2)
+
+                  ### 5.2 DHCP Pools & DNS Configuration Plan
+                  - **Router R1 DHCP Pool 1 (`CLIENT1_POOL`):** Leases `192.168.10.10` - `192.168.10.50`, gateway `192.168.10.1`, DNS `10.0.0.2`.
+                  - **Router R1 DHCP Pool 2 (`CLIENT2_POOL`):** Leases `192.168.11.10` - `192.168.11.50`, gateway `192.168.11.1`, DNS `10.0.0.2`.
+                  - **Router R2 Authoritative DNS:** Configured with `ip dns server` and static host mapping `server.[yourlastname].edu` -> `192.168.20.100`.
+
+                  ### 5.3 Deployment Strategy & Wireshark Trace Capture
+                  - **CML Deployment Strategy:** Deploy `server.py` onto Subnet C node (`192.168.20.100`) behind Router R2, and `client.py` onto Subnet A and Subnet B nodes behind Router R1.
+                  - **Cisco Infrastructure Configuration:** Router R1 DHCP pools (`CLIENT1_POOL`, `CLIENT2_POOL`) and Router R2 authoritative DNS (`ip host server.[lastname].edu 192.168.20.100`).
+                  - **Wireshark Trace Capture Plan:** Capture DHCP DORA exchange (`dhcp_negotiation.pcap`) and DNS query/response resolution (`dns_lookup.pcap`).
+
+````
