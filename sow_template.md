@@ -96,13 +96,15 @@ Constrained Cursor-only prompts force agents to implement newline-delimited JSON
 
 ## 3. Game Behavior & Server Concurrency Architecture (Sprint 2 Deliverable)
 
+> **Full specification + Mermaid sequence diagram:** [`docs/concurrency_design.md`](docs/concurrency_design.md)
+
 ### 3.1 Server Concurrency Strategy
-- **Architecture Choice:** [Multi-Threading (`threading.Thread`) OR Non-blocking I/O multiplexing (`select.select` / `selectors`)]
-- **Synchronization Logic:** Explain how shared game state and client list are thread-safe (e.g. `threading.Lock`) to prevent race conditions during turn processing.
+- **Architecture Choice:** Multi-Threading (`threading.Thread`) — one dedicated worker thread per accepted client socket; main thread owns `accept()`; optional daemon timer thread enforces the 15s answer window.
+- **Synchronization Logic:** Shared match state (`clients`, `fsm_state`, `answers`, `scores`, `current_round`) is guarded by a single `threading.RLock` (`state_lock`). Workers `recv()` **outside** the lock, then acquire it for validate → mutate → `STATE_UPDATE` / `ERROR` send. Broadcasts to both clients happen under the same lock so scoreboards stay identical.
 
 ### 3.2 State & Score Synchronization Across Clients
-- **Turn Enforcement:** Detail how the server validates active player ID before processing moves and broadcasts updated turn notifications to all clients.
-- **Score & Board Synchronization:** Describe how state broadcasts keep client screens synchronized in real time.
+- **Turn Enforcement:** During `PLAYER_TURN` both seats may submit one `MOVE`. Server rejects `OUT_OF_TURN`, `ALREADY_ANSWERED`, `INVALID_MOVE`, and `STALE_ROUND` with recoverable `ERROR` (no FSM advance, no score change). See Mermaid `sequenceDiagram` in `docs/concurrency_design.md`.
+- **Score & Board Synchronization:** Authoritative `scores` / `answers` live only on the server. After each scored round (or partial answer flags), the server synchronously fans out the same framed `STATE_UPDATE` to both sockets before unlocking; final `GAME_OVER` carries `final_scores`.
 
 ---
 
