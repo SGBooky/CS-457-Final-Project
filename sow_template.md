@@ -113,10 +113,12 @@ Constrained Cursor-only prompts force agents to implement newline-delimited JSON
 - **Permitted AI Tools:** Cursor only (multiple LLM types + parallel agents in one workflow)
 - **AI Prompting & Constraint Strategy:** See **ai_prompts.md** — system constraints require exact schema/FSM compliance before any generated code is accepted.
 - **Implementation Risk Management:** Implement framing + CONNECT/lobby first, then QUESTION/MOVE scoring loop, then disconnect/forfeit paths; keep functions small and testable against the blueprint.
+- **Sprint 3 Status:** Implemented — `protocol.py` (newline JSON framing), `server.py` (threaded workers + FSM), `client.py` (CLI `-i`/`-p`, DNS `gaierror` handling, interactive UI). Local multi-turn demo log: [`docs/sprint3_execution_log.txt`](docs/sprint3_execution_log.txt).
 
 ---
 
 ## 5. CML Multi-Subnet Topology & Wireshark Deployment Plan (Sprint 4 & 5 Deliverable)
+
 
 > For now you can use the topology below. We may update this when we get to defining subnets.
 
